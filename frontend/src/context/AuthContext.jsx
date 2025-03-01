@@ -1,31 +1,50 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
 
-export const AuthContext = createContext();
+// Create authentication context
+const AuthContext = createContext();
 
+// AuthProvider Component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem("token"));
 
+  // Check if user is logged in (Runs on mount)
   useEffect(() => {
-    if (token) {
-      const storedUser = JSON.parse(localStorage.getItem("user"));
-      setUser(storedUser);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
     }
-  }, [token]);
+  }, []);
 
-  const login = (newToken, userData) => {
-    setToken(newToken);
-    setUser(userData);
-    localStorage.setItem("token", newToken);
-    localStorage.setItem("user", JSON.stringify(userData));
+  // Login function
+  const login = async (email, password) => {
+    try {
+      const response = await axios.post("http://localhost:5000/auth/login", { email, password });
+      const { user, token } = response.data;
+
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      setUser(user);
+    } catch (error) {
+      throw new Error("Login failed");
+    }
   };
 
+  // Logout function
   const logout = () => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem("token");
     localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    setUser(null);
   };
 
-  return <AuthContext.Provider value={{ user, token, login, logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Custom Hook to use AuthContext
+export const useAuth = () => {
+  return useContext(AuthContext);
 };
